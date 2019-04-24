@@ -1,19 +1,20 @@
 #include <stdio.h>
 #include <stdint.h>	
 
-#define O_CRC 0x866994b9	// orig. cCRC
-#define CRC 0x9c4932f2		// patched cCRC
+#define CRC_O 0x866994b9	// orig. cCRC
+#define CRC 0x1e702b91		// patched cCRC
 #define PATCH_BASE 0x1c00L
 #define FW_SIZE 0x8000L - PATCH_BASE
 #define FW_END_OFFS 2
 #define THR_UNIT_CONST_REL_ADR 0x5200L
 #define AXIS_FILT_REL_ADR 0x1FFCL
+#define AXIS_MAIN_FILT_REL_ADR 0x2072L
 #define REL(OFFS) (OFFS - PATCH_BASE)
 
 int main(int argc, char *argv[]) {
 	FILE *p_fw;
 	uint8_t buf[FW_SIZE];
-	uint32_t ccrc32;
+	uint32_t ccrc32, ccrc32_r;
 
 	p_fw = fopen("G940_Update_FW0142.exe","r+b");
 	if (!p_fw) {
@@ -21,22 +22,38 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-/*	read firmware blob	*/
+/*	read firmware original blob	*/
 	fseek(p_fw, -(FW_SIZE + FW_END_OFFS), SEEK_END);
 	fread(&buf, FW_SIZE, 1, p_fw);
 
 /*	check the ccrc value	*/
-	ccrc32 = *(uint32_t*)&buf[REL(0x7FFCUL)];
-	if (ccrc32 != O_CRC) {
-		printf("original firmware checksum is wrong, leaving ... (%x vs. %x)\n", O_CRC, ccrc32);
+	ccrc32_r = *(uint32_t*)&buf[REL(0x7FFCUL)];
+	if (ccrc32_r != CRC_O) {
+		printf("original firmware checksum is wrong, leaving ... (%x vs. %x)\n", CRC_O, ccrc32);
 		return 1;
 	}
+
+/*	make ADC1 & DMA_CH1 circular	*/
+	*(uint8_t*)&buf[REL(0x1E0E)] = 0xA3;	// DMA_CCR1 CIRC
+	*(uint16_t*)&buf[REL(0x1E36)] = 0x4770;	// shorten DMA_CH1_ISR
+	*(uint8_t*)&buf[REL(0x2224)] = 0x03;	// ADC1_CR2 CONT
 
 /*	set tolerance for new axis noice filter algorithm, 
 	0x4 results in +/-1 LSB noice tolerance	*/
 	buf[REL(0x1f0c)] = 0x5; // tolerance for noice filter
 
-/*	patch the analog axis noice filtering function	*/
+/*	increase the main axis active area, for better precision/resolution	*/
+	*(uint8_t*)&buf[REL(0x215C)] = 0x48;	// main axis scale, was 90/64, now 72/64
+
+/*	patch the main axis noice filtering function for real and minimal hysteresis	*/
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR)] = 0x1B82BFB4; 
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 4] = 0xB2121A32; 
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 8] = 0xDB182A40; 
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 0xC] = 0xBFB44286; 
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 0x10] = 0x30403840; 
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 0x14] = 0xE7EB8098; 
+
+/*	patch the analog axis noice filtering function for real and minimal hysteresis	*/
 	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR)] = 0xBFB44287; 
 	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 4] = 0x1A3E1BC6; 
 	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 8] = 0x7E1218D2; 
@@ -49,7 +66,7 @@ int main(int argc, char *argv[]) {
 /*	remove RUDDER deadzone	*/
 	*(uint16_t*)&buf[REL(0x2304)] = 0xBF00;	// RUDDER+
 
-/*	adapt axes processing, register R2 holds the filtered value	*/
+/*	adapt axes processing, register r2 holds the filtered value	*/
 	*(uint8_t*)&buf[REL(0x2308)] = 0x10;	// RUDDER
 	*(uint8_t*)&buf[REL(0x231A)] = 0x10;	// RUDDER+
 	*(uint8_t*)&buf[REL(0x2358)] = 0x10;	// BRAKE_L
@@ -65,10 +82,10 @@ int main(int argc, char *argv[]) {
 	*(uint8_t*)&buf[REL(0x26F0)] = 0x22;	// R1
 	*(uint8_t*)&buf[REL(0x2714)] = 0x22;	// R2
 
-/*	checksum	*/
-	ccrc32 = CRC;
 
-//	printf("ccrc32: %x\n", ccrc32);
+/*	process checksum	*/
+	ccrc32 = CRC;
+	printf("ccrc32: %x\n", ccrc32);
 
 /*	write checksum of patched blob	*/
 	*(uint32_t*)&buf[REL(0x7FFCUL)] = ccrc32;
