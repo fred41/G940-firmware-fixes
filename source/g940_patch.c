@@ -1,5 +1,6 @@
 #include <stdio.h>
-#include <stdint.h>	
+#include <stdint.h>
+#include <conio.h>
 
 #define CRC_O 0x866994b9	// orig. cCRC
 #define CRC 0x1e702b91		// patched cCRC
@@ -85,7 +86,7 @@ int main(int argc, char *argv[]) {
 
 /*	process checksum	*/
 	ccrc32 = CRC;
-	printf("ccrc32: %x\n", ccrc32);
+	printf("ccrc32: %x\n\n", ccrc32);
 
 /*	write checksum of patched blob	*/
 	*(uint32_t*)&buf[REL(0x7FFCUL)] = ccrc32;
@@ -95,6 +96,13 @@ int main(int argc, char *argv[]) {
 	fwrite(buf, FW_SIZE, 1, p_fw);
 
 	fclose(p_fw);
+
+	printf("The file G940_Update_FW0142.exe was patched successfully.\n\n");
+ 	printf("Now run it to upload the patched firmware to your device.\n\n");
+	printf("Press any key to continue ...\n");
+
+	getch();
+
 
 	return 0;
 }
