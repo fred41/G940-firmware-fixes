@@ -14,8 +14,10 @@ I debugged the firmware (in system, gdb, st-link) and finally found a way to imp
 and to remove the firmware 'deadzone' from the rudder axis.     
 Even if the main stick axes are already usable with firmware 1.42, this patch will increase the precision significantly too, by:    
 - increasing the active stick zones (more movement in x and y directions)    
-- optimizing the noice filter function (true and minimal hyteresis)
+- optimizing the noice filter function (true and minimal hyteresis)    
      
+Force feedback related changes are:     
+- adapting the background condition effects (damped centering spring) to be less "aggressive"     
      
 To use this patch you need the following:    
      
