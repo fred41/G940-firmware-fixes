@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <conio.h>
-
 #define CRC_O 0x866994b9	// orig. cCRC
-#define CRC 0x6d15697		// patched cCRC
+#define CRC 0x9fc14401		// patched cCRC
 #define PATCH_BASE 0x1C00L
 #define FW_SIZE 0x8000L - PATCH_BASE
 #define FW_END_OFFS 2
@@ -37,7 +36,6 @@ int main(int argc, char *argv[]) {
 		printf("original firmware checksum is wrong, leaving ... (%x vs. %x)\n", CRC_O, ccrc32);
 		return 1;
 	}
-
 /*	make ADC1 & DMA_CH1 circular	*/
 	*(uint8_t*)&buf[REL(0x1E0E)] = 0xA3;	// DMA_CCR1 CIRC
 	*(uint16_t*)&buf[REL(0x1E36)] = 0x4770;	// shorten DMA_CH1_ISR
@@ -88,21 +86,12 @@ int main(int argc, char *argv[]) {
 	*(uint8_t*)&buf[REL(0x2714)] = 0x22;	// R2
 
 /*	set the default force feedback params for combined effect	*/
-	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE)] = 0x3F2F1F00;
-	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_PARAMS_XY_OFFS)] = 0x3F2F1F00;
+	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE)] = 0x3F2F1F00; 
+	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_PARAMS_XY_OFFS)] = 0x3F2F1F00; 
 
 /*	set the permanent force feedback params for combined effect	*/
-	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS)] = 0x7F2F3F00;
-	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS + FF_PARAMS_XY_OFFS)] = 0x7F2F3F00;
-
-/*	scale impact of spring coefficients down, (div 8) to move saturation to max/min x/y	*/
-	*(uint16_t*)&buf[REL(0x39B4)] = 0x11D3;
-
-/*	adapt PWM scale, to minimize unwanted deadzone	*/
-	*(uint32_t*)&buf[REL(0x3AD2)] = 0x5367F244;//(32767-15000) 
-	*(uint32_t*)&buf[REL(0x3ADC)] = 0x2298F643;//+15000
-	*(uint32_t*)&buf[REL(0x3B98)] = 0xFFFFC568;//-15000
-
+	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS)] = 0x7F2F7F00; 
+	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS + FF_PARAMS_XY_OFFS)] = 0x7F2F7F00; 
 
 /*	process checksum	*/
 	ccrc32 = CRC;
@@ -122,6 +111,7 @@ int main(int argc, char *argv[]) {
 	printf("Press any key to continue ...\n");
 
 	getch();
+
 
 	return 0;
 }
