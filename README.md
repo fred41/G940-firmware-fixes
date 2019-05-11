@@ -19,8 +19,8 @@ I debugged the firmware (in system, gdb, st-link) and finally improved the follo
        
 Force feedback related improvements are:     
 - adapted the minimal pwm duty cycle to minimize the unwanted deadzone (center play)     
-- adapted spring coefficient to saturate simultanous with min/max control positions at 100% setting        
 - adapted the default condition effects params to be less "aggressive"     
+- replaced the noicy position input, by noice filtered position data (micro oscillations)     
      
 To use this patch you need the following:    
      

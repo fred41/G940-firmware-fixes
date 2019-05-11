@@ -3,7 +3,7 @@
 #include <conio.h>
 
 #define CRC_O 0x866994b9	// orig. cCRC
-#define CRC 0x5a6a12c2		// patched cCRC 5a6a12c2
+#define CRC 0x2c1fa32f		// patched cCRC 5a6a12c2
 #define PATCH_BASE 0x1C00L
 #define FW_SIZE 0x8000L - PATCH_BASE
 #define FW_END_OFFS 2
@@ -31,7 +31,6 @@ int main(int argc, char *argv[]) {
 	fread(&buf, FW_SIZE, 1, p_fw);
 
 /*	check the ccrc value	*/
-
 	ccrc32 = *(uint32_t*)&buf[REL(0x7FFCUL)];
 	if (ccrc32 != CRC_O) {
 		printf("original firmware checksum is wrong, leaving ... (%x vs. %x)\n", CRC_O, ccrc32);
@@ -99,14 +98,11 @@ int main(int argc, char *argv[]) {
 	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS)] = 0x7F2F7F00; 
 	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS + FF_PARAMS_XY_OFFS)] = 0x7F2F7F00; 
 
-/*	replace noice raw by noice filtered stick position, for noice free ffb	*/
+/*	replace noicy raw by noice filtered stick position, for noice free ffb	*/
 	*(uint16_t*)&buf[REL(0x2172)] = 0x889D;
 	*(uint16_t*)&buf[REL(0x2174)] = 0xBF00;
 	*(uint16_t*)&buf[REL(0x2176)] = 0xBF00;
 	*(uint16_t*)&buf[REL(0x2178)] = 0xBF00;
-
-/*	scale impact of spring coefficients down, (div 8) to move saturation to max/min x/y	*/
-	*(uint16_t*)&buf[REL(0x39B4)] = 0x11D3;
 
 /*	adapt PWM scale, to minimize unwanted deadzone	*/
 	*(uint32_t*)&buf[REL(0x3AD2)] = 0x134FF644;//(32767-14000)
