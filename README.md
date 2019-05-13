@@ -10,14 +10,17 @@ simple fixes and workarounds, for most of the mechanical issues.
 The firmware related problems are partly fixed in the latest (unofficial) firmware update 1.42.    
 Nevertheless all analog axes, exept the two main stick axes, are still showing a strange 'hysteresis' behavior.    
      
-I debugged the firmware (in system, gdb, st-link) and finally found a way to improve the precision of all 8-bit axes     
-and to remove the firmware 'deadzone' from the rudder axis.     
-Even if the main stick axes are already usable with firmware 1.42, this patch will increase the precision significantly too, by:    
-- increasing the active stick zones (more movement in x and y directions)    
-- optimizing the noice filter function (true and minimal hyteresis)    
-     
-Force feedback related changes are:     
-- adapting the background condition effects (damped centering spring) to be less "aggressive"     
+I debugged the firmware (in system, gdb, st-link) and finally improved the following properties of the input part:    
+- precision of all 8-bit axes significantly improved (reversal bug fixed)        
+- removed the firmware 'deadzone' from the rudder axis         
+- increasing the active stick zones (more movement in x and y directions)      
+- main axis precision improved by optimizing the noice filtering function (true/minimal hyteresis now)    
+- some minor optimizations       
+       
+Force feedback related improvements are:     
+- adapted the minimal pwm duty cycle to minimize the unwanted deadzone (center play)     
+- adapted the default condition effects params to be less "aggressive"     
+- replaced the noicy position input, by noice filtered position data (micro oscillations)     
      
 To use this patch you need the following:    
      

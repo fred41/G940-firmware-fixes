@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <conio.h>
+
 #define CRC_O 0x866994b9	// orig. cCRC
-#define CRC 0x9fc14401		// patched cCRC
+#define CRC 0x2c1fa32f		// patched cCRC 5a6a12c2
 #define PATCH_BASE 0x1C00L
 #define FW_SIZE 0x8000L - PATCH_BASE
 #define FW_END_OFFS 2
@@ -30,12 +31,14 @@ int main(int argc, char *argv[]) {
 	fread(&buf, FW_SIZE, 1, p_fw);
 
 /*	check the ccrc value	*/
-
 	ccrc32 = *(uint32_t*)&buf[REL(0x7FFCUL)];
 	if (ccrc32 != CRC_O) {
 		printf("original firmware checksum is wrong, leaving ... (%x vs. %x)\n", CRC_O, ccrc32);
 		return 1;
 	}
+
+/*  ####################### axis input related part #######################	*/
+
 /*	make ADC1 & DMA_CH1 circular	*/
 	*(uint8_t*)&buf[REL(0x1E0E)] = 0xA3;	// DMA_CCR1 CIRC
 	*(uint16_t*)&buf[REL(0x1E36)] = 0x4770;	// shorten DMA_CH1_ISR
@@ -85,6 +88,8 @@ int main(int argc, char *argv[]) {
 	*(uint8_t*)&buf[REL(0x26F0)] = 0x22;	// R1
 	*(uint8_t*)&buf[REL(0x2714)] = 0x22;	// R2
 
+/*  ####################### force feedback related part #######################	*/
+
 /*	set the default force feedback params for combined effect	*/
 	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE)] = 0x3F2F1F00; 
 	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_PARAMS_XY_OFFS)] = 0x3F2F1F00; 
@@ -92,6 +97,17 @@ int main(int argc, char *argv[]) {
 /*	set the permanent force feedback params for combined effect	*/
 	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS)] = 0x7F2F7F00; 
 	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS + FF_PARAMS_XY_OFFS)] = 0x7F2F7F00; 
+
+/*	replace noicy raw by noice filtered stick position, for noice free ffb	*/
+	*(uint16_t*)&buf[REL(0x2172)] = 0x889D;
+	*(uint16_t*)&buf[REL(0x2174)] = 0xBF00;
+	*(uint16_t*)&buf[REL(0x2176)] = 0xBF00;
+	*(uint16_t*)&buf[REL(0x2178)] = 0xBF00;
+
+/*	adapt PWM scale, to minimize unwanted deadzone	*/
+	*(uint32_t*)&buf[REL(0x3AD2)] = 0x134FF644;//(32767-14000)
+	*(uint32_t*)&buf[REL(0x3ADC)] = 0x62B0F243;//+14000
+	*(uint32_t*)&buf[REL(0x3B98)] = 0xFFFFC950;//-14000
 
 /*	process checksum	*/
 	ccrc32 = CRC;
@@ -111,7 +127,6 @@ int main(int argc, char *argv[]) {
 	printf("Press any key to continue ...\n");
 
 	getch();
-
 
 	return 0;
 }
