@@ -3,7 +3,7 @@
 #include <conio.h>
 
 #define CRC_O 0x866994b9	// orig. cCRC
-#define CRC 0x2c1fa32f		// patched cCRC 5a6a12c2
+#define CRC 0xcb690f00		// patched cCRC 5a6a12c2
 #define PATCH_BASE 0x1C00L
 #define FW_SIZE 0x8000L - PATCH_BASE
 #define FW_END_OFFS 2
@@ -90,19 +90,26 @@ int main(int argc, char *argv[]) {
 
 /*  ####################### force feedback related part #######################	*/
 
+/*	set the default deadman switch state active, to simulate 'hands on' in case grip pcb is disconnected */
+	*(uint16_t*)&buf[REL(0x1F46)] = 0x21C0; 
+
 /*	set the default force feedback params for combined effect	*/
 	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE)] = 0x3F2F1F00; 
 	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_PARAMS_XY_OFFS)] = 0x3F2F1F00; 
 
 /*	set the permanent force feedback params for combined effect	*/
-	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS)] = 0x7F2F7F00; 
-	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS + FF_PARAMS_XY_OFFS)] = 0x7F2F7F00; 
+	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS)] = 0x7F7F2700; 
+	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS + FF_PARAMS_XY_OFFS)] = 0x7F7F2700; 
 
-/*	replace noicy raw by noice filtered stick position, for noice free ffb	*/
+/*	replace noice raw by noice filtered stick position, for noice free ffb	*/
 	*(uint16_t*)&buf[REL(0x2172)] = 0x889D;
 	*(uint16_t*)&buf[REL(0x2174)] = 0xBF00;
 	*(uint16_t*)&buf[REL(0x2176)] = 0xBF00;
 	*(uint16_t*)&buf[REL(0x2178)] = 0xBF00;
+
+/*	scale impact of spring coefficients down, (div 8) to move saturation to max/min x/y	
+	*(uint16_t*)&buf[REL(0x39B4)] = 0x11D3;
+*/
 
 /*	adapt PWM scale, to minimize unwanted deadzone	*/
 	*(uint32_t*)&buf[REL(0x3AD2)] = 0x134FF644;//(32767-14000)
