@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <conio.h>
-
 #define CRC_O 0x866994b9	// orig. cCRC
-#define CRC 0x2c1fa32f		// patched cCRC 5a6a12c2
+#define CRC 0x94f5b39f		// patched cCRC
 #define PATCH_BASE 0x1C00L
 #define FW_SIZE 0x8000L - PATCH_BASE
 #define FW_END_OFFS 2
@@ -39,34 +38,34 @@ int main(int argc, char *argv[]) {
 
 /*  ####################### axis input related part #######################	*/
 
-/*	make ADC1 & DMA_CH1 circular	*/
-	*(uint8_t*)&buf[REL(0x1E0E)] = 0xA3;	// DMA_CCR1 CIRC
-	*(uint16_t*)&buf[REL(0x1E36)] = 0x4770;	// shorten DMA_CH1_ISR
-	*(uint8_t*)&buf[REL(0x2224)] = 0x03;	// ADC1_CR2 CONT
+/*	make ADC1 & DMA_CH1 circular, may cause hang if G940 is connected before boot 	*/
+//	*(uint8_t*)&buf[REL(0x1E0E)] = 0xA3;	// DMA_CCR1 CIRC
+//	*(uint16_t*)&buf[REL(0x1E36)] = 0x4770;	// shorten DMA_CH1_ISR
+//	*(uint8_t*)&buf[REL(0x2224)] = 0x03;	// ADC1_CR2 CONT
 
-/*	set tolerance for new axis noice filter algorithm, 
+/*	set tolerance for new axis noice filter algorithm,
 	0x4 results in +/-1 LSB noice tolerance	*/
 	buf[REL(0x1f0c)] = 0x5; // tolerance for noice filter
 
 /*	increase the main axis active area, for better precision/resolution	*/
-	*(uint8_t*)&buf[REL(0x215C)] = 0x48;	// main axis scale, was 90/64, now 72/64
+	*(uint8_t*)&buf[REL(0x215C)] = 0x50;	// main axis scale, was 90/64, now 80/64
 
 /*	patch the main axis noice filtering function for real and minimal hysteresis	*/
-	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR)] = 0x1B82BFB4; 
-	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 4] = 0xB2121A32; 
-	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 8] = 0xDB182A40; 
-	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 0xC] = 0xBFB44286; 
-	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 0x10] = 0x30403840; 
-	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 0x14] = 0xE7EB8098; 
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR)] = 0x1B82BFB4;
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 4] = 0xB2121A32;
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 8] = 0xDB182A40;
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 0xC] = 0xBFB44286;
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 0x10] = 0x30403840;
+	*(uint32_t*)&buf[REL(AXIS_MAIN_FILT_REL_ADR) + 0x14] = 0xE7EB8098;
 
 /*	patch the analog axis noice filtering function for real and minimal hysteresis	*/
-	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR)] = 0xBFB44287; 
-	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 4] = 0x1A3E1BC6; 
-	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 8] = 0x7E1218D2; 
+	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR)] = 0xBFB44287;
+	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 4] = 0x1A3E1BC6;
+	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 8] = 0x7E1218D2;
 	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 0xC] = 0xB2B60192;
-	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 0x10] = 0xDA1842B2; 
-	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 0x14] = 0xBFB44287; 
-	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 0x18] = 0x18821A82; 
+	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 0x10] = 0xDA1842B2;
+	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 0x14] = 0xBFB44287;
+	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 0x18] = 0x18821A82;
 	*(uint32_t*)&buf[REL(AXIS_FILT_REL_ADR) + 0x1C] = 0xE7E88522;
 
 /*	remove RUDDER deadzone	*/
@@ -90,19 +89,26 @@ int main(int argc, char *argv[]) {
 
 /*  ####################### force feedback related part #######################	*/
 
+/*	set the default deadman switch state active, to simulate 'hands on' in case grip pcb is disconnected */
+	*(uint16_t*)&buf[REL(0x1F46)] = 0x21C0;
+
 /*	set the default force feedback params for combined effect	*/
-	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE)] = 0x3F2F1F00; 
-	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_PARAMS_XY_OFFS)] = 0x3F2F1F00; 
+	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE)] = 0x3F2F1F00;
+	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_PARAMS_XY_OFFS)] = 0x3F2F1F00;
 
 /*	set the permanent force feedback params for combined effect	*/
-	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS)] = 0x7F2F7F00; 
-	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS + FF_PARAMS_XY_OFFS)] = 0x7F2F7F00; 
+	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS)] = 0x7F7F2700;
+	*(uint32_t*)&buf[REL(FF_COMB_PARAMS_BASE + FF_COMB_PERM_PARAMS_OFFS + FF_PARAMS_XY_OFFS)] = 0x7F7F2700;
 
-/*	replace noicy raw by noice filtered stick position, for noice free ffb	*/
+/*	replace noice raw by noice filtered stick position, for noice free ffb	*/
 	*(uint16_t*)&buf[REL(0x2172)] = 0x889D;
 	*(uint16_t*)&buf[REL(0x2174)] = 0xBF00;
 	*(uint16_t*)&buf[REL(0x2176)] = 0xBF00;
 	*(uint16_t*)&buf[REL(0x2178)] = 0xBF00;
+
+/*	scale impact of spring coefficients down, (div 8) to move saturation to max/min x/y
+	*(uint16_t*)&buf[REL(0x39B4)] = 0x11D3;
+*/
 
 /*	adapt PWM scale, to minimize unwanted deadzone	*/
 	*(uint32_t*)&buf[REL(0x3AD2)] = 0x134FF644;//(32767-14000)
